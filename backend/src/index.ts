@@ -11,9 +11,9 @@ fastify.get('/', async () => {
 // Start server
 const start = async () => {
   try {
-const server = await fastify.listen({ port: 4000 });
+    const server = await fastify.listen({ port: 4000, host: '0.0.0.0' });
     console.log(`Server running at ${server}`);
-setupWebSocket(fastify.server);
+    setupWebSocket(fastify.server);
 
   } catch (err) {
     fastify.log.error(err);

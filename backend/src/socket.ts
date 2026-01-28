@@ -1,7 +1,14 @@
-import { WebSocketServer, WebSocket as WsSocket } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
+import type { ChatMessage } from './types';
+
+interface ClientMeta {
+  socket: WebSocket;
+  user: string;
+}
 
 let wss: WebSocketServer;
+const clients = new Map<WebSocket, ClientMeta>();
 
 export const setupWebSocket = (server: any) => {
   wss = new WebSocketServer({ noServer: true });
@@ -17,23 +24,86 @@ export const setupWebSocket = (server: any) => {
     }
   });
 
-  wss.on('connection', (socket: WsSocket, req) => {
+  setInterval(() => {
+    wss.clients.forEach((ws: any) => {
+      if (!ws.isAlive) {
+        ws.terminate();
+        return;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  wss.on('connection', (socket: WebSocket, req) => {
     const ip = req.socket.remoteAddress;
     console.log('New client connected:', ip);
 
-    socket.on('message', (data) => {
-      const message = data.toString();
-      console.log('Received:', message);
+    (socket as any).isAlive = true;
+    socket.on('pong', () => ((socket as any).isAlive = true));
+    socket.on('message', (raw) => {
+      let payload: ChatMessage;
 
-      wss.clients.forEach((client) => {
-        if (client.readyState === WsSocket.OPEN) {
-          client.send(message);
-        }
-      });
+      try {
+        payload = JSON.parse(raw.toString());
+      } catch {
+        console.warn('Invalid JSON received');
+        return;
+      }
+
+      // First message must be JOIN
+      if (payload.type === 'join') {
+        clients.set(socket, {
+          socket,
+          user: payload.user,
+        });
+
+        broadcast({
+          type: 'join',
+          user: payload.user,
+          timestamp: Date.now(),
+        });
+
+        return;
+      }
+
+      const client = clients.get(socket);
+      if (!client) return;
+
+      if (payload.type === 'message') {
+        broadcast({
+          type: 'message',
+          user: client.user,
+          text: payload.text,
+          timestamp: Date.now(),
+        });
+      }
     });
 
     socket.on('close', () => {
-      console.log('Client disconnected:', ip);
+      const client = clients.get(socket);
+      if (!client) return;
+
+      clients.delete(socket);
+
+      broadcast({
+        type: 'leave',
+        user: client.user,
+        timestamp: Date.now(),
+      });
+
+      console.log('Client disconnected:', client.user);
     });
   });
 };
+
+// 🔁 Broadcast helper
+function broadcast(message: ChatMessage) {
+  const data = JSON.stringify(message);
+
+  for (const { socket } of clients.values()) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(data);
+    }
+  }
+}
