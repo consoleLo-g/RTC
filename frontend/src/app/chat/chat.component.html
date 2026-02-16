@@ -1,0 +1,42 @@
+<div class="chat-container" *ngIf="username; else usernameForm">
+  <div class="chat-window" #chatWindow>
+    <div
+      *ngFor="let msg of messages(); trackBy: trackByTimestamp"
+      class="message"
+      [ngClass]="{
+        'system': msg.type !== 'message',
+        'mine': msg.type === 'message' && msg.user === username
+      }"
+    >
+      <ng-container [ngSwitch]="msg.type">
+        <span *ngSwitchCase="'message'">
+          <strong>{{ msg.user }}:</strong> {{ msg.text }}
+        </span>
+        <span *ngSwitchCase="'join'">
+          🔹 {{ msg.user }} joined the chat
+        </span>
+        <span *ngSwitchCase="'leave'">
+          ⚪ {{ msg.user }} left the chat
+        </span>
+      </ng-container>
+      <div class="timestamp">{{ msg.timestamp | date: 'shortTime' }}</div>
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <input
+      [(ngModel)]="newMessage"
+      placeholder="Type a message..."
+      (keyup.enter)="send()"
+      (input)="onInput()"
+    />
+    <button (click)="send()">Send</button>
+  </div>
+</div>
+
+<ng-template #usernameForm>
+  <div class="username-form">
+    <input [(ngModel)]="tempUsername" placeholder="Enter your username" />
+    <button (click)="setUsername()">Join Chat</button>
+  </div>
+</ng-template>
