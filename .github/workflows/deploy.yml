@@ -15,8 +15,8 @@ jobs:
 
             - name: Trigger Backend Deploy
               run: |
-                  curl -x POST ${{secrets.RENDER_BACKEND_DEPLOY_HOOK_URL}}
+                  curl -X POST ${{secrets.RENDER_BACKEND_DEPLOY_HOOK_URL}}
 
             - name: Trigger Frontend Deploy
               run: |
-                  curl -x POST ${{secrets.RENDER_FRONTEND_DEPLOY_HOOK}}
+                  curl -X POST ${{secrets.RENDER_FRONTEND_DEPLOY_HOOK}}
